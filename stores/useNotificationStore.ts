@@ -22,39 +22,21 @@ interface NotificationState {
 
 const STORAGE_KEY = "culinacloud_waiter_notifications_v1";
 
-const initialSampleNotifications: WaiterNotification[] = [
-  {
-    id: "notif-1",
-    type: "kot_ready",
-    title: "Table T-01 Food Ready",
-    message: "Special Dum Chicken Biryani is prepared and ready to serve.",
-    tableNumber: "T-01",
-    kotNumber: "KOT #101",
-    timestamp: new Date(Date.now() - 1000 * 60 * 3).toISOString(),
-    read: false,
-  },
-  {
-    id: "notif-2",
-    type: "bill_ready",
-    title: "Bill Ready for Table T-04",
-    message: "Admin has generated Bill #BILL-1045 for ₹784. Ready for guest.",
-    tableNumber: "T-04",
-    timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-    read: false,
-  },
-];
-
 function loadSavedNotifications(): WaiterNotification[] {
-  if (typeof window === "undefined") return initialSampleNotifications;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        // Purge any legacy sample mock notifications if present in browser localStorage
+        return parsed.filter((n) => n && n.id !== "notif-1" && n.id !== "notif-2");
+      }
     }
   } catch {
     // Ignore storage parse errors
   }
-  return initialSampleNotifications;
+  return [];
 }
 
 function saveNotifications(notifications: WaiterNotification[]) {

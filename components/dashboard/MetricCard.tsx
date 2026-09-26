@@ -4,11 +4,13 @@ import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
   title: string;
-  value: string;
+  value: string | number;
   change?: string;
   isPositive?: boolean;
   icon: React.ElementType;
   description?: string;
+  subtext?: string;
+  isLoading?: boolean;
   variant?: "brand" | "emerald" | "amber" | "sky" | "indigo" | "rose";
 }
 
@@ -19,6 +21,8 @@ export function MetricCard({
   isPositive,
   icon: Icon,
   description,
+  subtext,
+  isLoading,
   variant = "brand",
 }: MetricCardProps) {
   const iconVariants = {
@@ -48,7 +52,7 @@ export function MetricCard({
 
       <div className="mt-3 flex items-baseline justify-between">
         <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-          {value}
+          {isLoading ? "..." : value}
         </h3>
         {change && (
           <span
@@ -67,9 +71,9 @@ export function MetricCard({
         )}
       </div>
 
-      {description && (
+      {(description || subtext) && (
         <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-          {description}
+          {description || subtext}
         </p>
       )}
     </div>

@@ -11,38 +11,108 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
+import { useAuthProfile } from "@/lib/hooks/useAuthProfile";
+import { createClient } from "@/lib/supabase/client";
+import { BarChart3 } from "lucide-react";
 
-const hourlyData = [
-  { time: "11 AM", sales: 2400, orders: 8 },
-  { time: "12 PM", sales: 8500, orders: 22 },
-  { time: "1 PM", sales: 14200, orders: 36 },
-  { time: "2 PM", sales: 18900, orders: 48 },
-  { time: "3 PM", sales: 7400, orders: 18 },
-  { time: "4 PM", sales: 4300, orders: 12 },
-  { time: "5 PM", sales: 6100, orders: 15 },
-  { time: "6 PM", sales: 11200, orders: 28 },
-  { time: "7 PM", sales: 19800, orders: 49 },
-  { time: "8 PM", sales: 26400, orders: 62 },
-  { time: "9 PM", sales: 22100, orders: 54 },
-  { time: "10 PM", sales: 9800, orders: 24 },
-];
+interface HourlyPoint {
+  time: string;
+  sales: number;
+  orders: number;
+}
 
 export function SalesChart() {
   const [mounted, setMounted] = React.useState(false);
+  const { profile } = useAuthProfile();
+  const [chartData, setChartData] = React.useState<HourlyPoint[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(true);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
+  React.useEffect(() => {
+    if (!profile?.restaurant_id) {
+      setLoading(false);
+      return;
+    }
+
+    let isSubscribed = true;
+    const fetchTodaySales = async () => {
+      try {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("orders")
+          .select("total_amount, created_at, status")
+          .eq("restaurant_id", profile.restaurant_id)
+          .gte("created_at", startOfDay.toISOString());
+
+        if (!error && data && isSubscribed) {
+          if (data.length === 0) {
+            setChartData([]);
+          } else {
+            // Group orders by hour
+            const hoursMap: Record<number, { sales: number; count: number }> = {};
+            data.forEach((ord) => {
+              const date = new Date(ord.created_at);
+              const hour = date.getHours();
+              if (!hoursMap[hour]) hoursMap[hour] = { sales: 0, count: 0 };
+              hoursMap[hour].sales += Number(ord.total_amount || 0);
+              hoursMap[hour].count += 1;
+            });
+
+            // Convert to array sorted by hour
+            const points: HourlyPoint[] = Object.keys(hoursMap)
+              .map(Number)
+              .sort((a, b) => a - b)
+              .map((hour) => {
+                const ampm = hour >= 12 ? "PM" : "AM";
+                const displayHour = hour % 12 || 12;
+                return {
+                  time: `${displayHour} ${ampm}`,
+                  sales: hoursMap[hour].sales,
+                  orders: hoursMap[hour].count,
+                };
+              });
+
+            setChartData(points);
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      } finally {
+        if (isSubscribed) setLoading(false);
+      }
+    };
+
+    fetchTodaySales();
+    return () => {
+      isSubscribed = false;
+    };
+  }, [profile?.restaurant_id]);
+
+  if (!mounted || loading) {
     return <div className="h-[280px] w-full rounded-xl bg-slate-100 dark:bg-slate-800/40 animate-pulse" />;
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-[280px] w-full flex flex-col items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-center p-6">
+        <BarChart3 className="h-10 w-10 text-slate-300 dark:text-slate-700 mb-2" />
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">No sales recorded today</p>
+        <p className="text-[11px] text-slate-400 mt-0.5">Today&apos;s hourly sales will plot here as bills are settled.</p>
+      </div>
+    );
   }
 
   return (
     <div className="h-[280px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
-          data={hourlyData}
+          data={chartData}
           margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
         >
           <defs>
@@ -62,7 +132,7 @@ export function SalesChart() {
             tickLine={false}
             axisLine={false}
             tick={{ fill: "#94a3b8", fontSize: 11 }}
-            tickFormatter={(val) => `₹${val / 1000}k`}
+            tickFormatter={(val) => `₹${val}`}
           />
           <Tooltip
             content={({ active, payload, label }) => {

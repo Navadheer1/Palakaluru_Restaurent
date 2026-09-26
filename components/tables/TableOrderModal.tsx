@@ -39,7 +39,7 @@ import { useMenuCatalog } from "@/lib/hooks/useMenuCatalog";
 import { useAuthProfile } from "@/lib/hooks/useAuthProfile";
 import { useRolePermissions } from "@/lib/hooks/useRolePermissions";
 import { PaymentModal } from "@/components/billing/PaymentModal";
-import { PaymentMethod } from "@/lib/constants";
+import { PaymentMethod, UserRole } from "@/lib/constants";
 
 interface TableOrderModalProps {
   isOpen: boolean;
@@ -49,26 +49,10 @@ interface TableOrderModalProps {
   capacity?: number;
   sectionName?: string;
   onTableStatusChanged?: () => void;
+  role?: UserRole;
 }
 
-const fallbackMenuItems = [
-  { id: "e1", name: "Special Dum Chicken Biryani", base_price: 280, category_id: "biryani", is_available: true, sku: "BIR-01" },
-  { id: "e2", name: "Mutton Ghee Roast Biryani", base_price: 420, category_id: "biryani", is_available: true, sku: "BIR-02" },
-  { id: "e3", name: "Guntur Chilli Chicken", base_price: 260, category_id: "starters", is_available: true, sku: "STR-01" },
-  { id: "e4", name: "Paneer Tikka Angara", base_price: 240, category_id: "starters", is_available: true, sku: "STR-02" },
-  { id: "e5", name: "Butter Chicken Delhi Style", base_price: 310, category_id: "curries", is_available: true, sku: "CUR-01" },
-  { id: "e6", name: "Garlic Butter Naan", base_price: 60, category_id: "breads", is_available: true, sku: "BRD-01" },
-  { id: "e7", name: "Mango Malai Lassi", base_price: 90, category_id: "beverages", is_available: true, sku: "BEV-01" },
-];
 
-const fallbackCategories = [
-  { id: "all", name: "All Dishes" },
-  { id: "biryani", name: "Biryani & Rice" },
-  { id: "starters", name: "Starters" },
-  { id: "curries", name: "Curries" },
-  { id: "breads", name: "Breads & Naan" },
-  { id: "beverages", name: "Beverages" },
-];
 
 export function TableOrderModal({
   isOpen,
@@ -78,9 +62,11 @@ export function TableOrderModal({
   capacity = 4,
   sectionName = "AC Hall",
   onTableStatusChanged,
+  role: explicitRole,
 }: TableOrderModalProps) {
   const { profile } = useAuthProfile();
-  const { activeRole, canBill, canPay, canRequestBill } = useRolePermissions();
+  const { activeRole, canBill, canPay } = useRolePermissions();
+  const currentRole: UserRole = explicitRole || activeRole || (profile?.role as UserRole) || "waiter";
   const restaurantId = profile?.restaurant_id || "a0000000-0000-0000-0000-000000000001";
   const { data: menuCatalog } = useMenuCatalog(restaurantId);
 
@@ -128,15 +114,13 @@ export function TableOrderModal({
 
   if (!isOpen) return null;
 
-  const session = sessions[tableId] || getActiveSession();
+  const session = sessions[tableId] || getActiveSession(tableId);
 
-  const catalogItems: MenuItem[] = (menuCatalog?.items && menuCatalog.items.length > 0)
-    ? menuCatalog.items
-    : (fallbackMenuItems as unknown as MenuItem[]);
+  const catalogItems: MenuItem[] = menuCatalog?.items || [];
 
   const categories = (menuCatalog?.categories && menuCatalog.categories.length > 0)
     ? [{ id: "all", name: "All Dishes" }, ...menuCatalog.categories]
-    : fallbackCategories;
+    : [{ id: "all", name: "All Dishes" }];
 
   const filteredMenuItems = catalogItems.filter((item) => {
     const matchesCat = activeCategory === "all" || item.category_id === activeCategory;
@@ -159,8 +143,8 @@ export function TableOrderModal({
   const isKitchenPreparing = session?.kotStatus === "preparing" || kots.some((k) => k.status === "preparing");
   const isKitchenReady = session?.kotStatus === "ready" || kots.some((k) => k.status === "ready");
 
-  const isWaiter = activeRole === "waiter";
-  const isAdminOrCashier = canBill || canPay || activeRole === "admin" || activeRole === "cashier";
+  const isWaiter = currentRole === "waiter";
+  const isAdminOrCashier = currentRole === "admin" || currentRole === "cashier" || currentRole === "manager";
 
   // Actions
   const handleGuestCountChange = (delta: number) => {
@@ -535,27 +519,33 @@ export function TableOrderModal({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-                      {filteredMenuItems.map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => addDraftItem(item)}
-                          className="cursor-pointer p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-brand-500 flex justify-between items-center transition-all"
-                        >
-                          <div className="min-w-0 flex-1 mr-2">
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                              {item.name}
-                            </p>
-                            <p className="text-[11px] text-brand-600 font-semibold">
-                              {formatCurrency(item.base_price)}
-                            </p>
+                    {filteredMenuItems.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-slate-400">
+                        No menu items found in this category
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                        {filteredMenuItems.map((item) => (
+                          <div
+                            key={item.id}
+                            onClick={() => addDraftItem(item)}
+                            className="cursor-pointer p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-brand-500 flex justify-between items-center transition-all"
+                          >
+                            <div className="min-w-0 flex-1 mr-2">
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                                {item.name}
+                              </p>
+                              <p className="text-[11px] text-brand-600 font-semibold">
+                                {formatCurrency(item.base_price)}
+                              </p>
+                            </div>
+                            <button className="h-6 w-6 rounded bg-brand-50 text-brand-600 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-colors">
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
                           </div>
-                          <button className="h-6 w-6 rounded bg-brand-50 text-brand-600 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-colors">
-                            <Plus className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -571,7 +561,8 @@ export function TableOrderModal({
                         </span>
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={clearDraftItems}
+                            type="button"
+                            onClick={() => clearDraftItems()}
                             className="text-[11px] text-rose-600 hover:underline font-semibold"
                           >
                             Clear All

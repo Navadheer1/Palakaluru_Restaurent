@@ -61,26 +61,39 @@ export function useRealtimeSync(restaurantId?: string | null) {
           }
         }
       )
-      // 2. Tables Realtime Stream: patch live floor plan cache directly
+      // 2. Tables Realtime Stream: patch live floor plan cache directly on any change
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "restaurant_tables",
           filter: `restaurant_id=eq.${restaurantId}`,
         },
         (payload) => {
           const queryKey = ["tables", restaurantId];
-          const updatedTable = payload.new as RestaurantTableItem;
 
-          queryClient.setQueryData<RestaurantTableItem[]>(queryKey, (old) =>
-            old
-              ? old.map((tbl) =>
-                  tbl.id === updatedTable.id ? { ...tbl, ...updatedTable } : tbl
-                )
-              : []
-          );
+          if (payload.eventType === "INSERT") {
+            const newTable = payload.new as RestaurantTableItem;
+            queryClient.setQueryData<RestaurantTableItem[]>(queryKey, (old) => {
+              if (!old) return [newTable];
+              if (old.some((t) => t.id === newTable.id)) return old;
+              return [...old, newTable].sort((a, b) => a.table_number.localeCompare(b.table_number));
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const updatedTable = payload.new as RestaurantTableItem;
+            queryClient.setQueryData<RestaurantTableItem[]>(queryKey, (old) =>
+              old
+                ? old.map((tbl) =>
+                    tbl.id === updatedTable.id ? { ...tbl, ...updatedTable } : tbl
+                  )
+                : []
+            );
+          } else if (payload.eventType === "DELETE") {
+            queryClient.setQueryData<RestaurantTableItem[]>(queryKey, (old) =>
+              old ? old.filter((tbl) => tbl.id !== (payload.old as { id: string }).id) : []
+            );
+          }
 
           // Invalidate metric cards for active table count
           queryClient.invalidateQueries({

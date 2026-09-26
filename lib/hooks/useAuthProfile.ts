@@ -45,55 +45,88 @@ export function useAuthProfile() {
         .eq("id", user.id)
         .single();
 
+      let resolvedProfile: Profile;
+
       if (!profile) {
         const userRole =
           user.user_metadata?.role ||
-          (user.email?.includes("waiter") ? "waiter" : user.email?.includes("kitchen") ? "kitchen" : user.email?.includes("cashier") ? "cashier" : "admin");
+          (user.email?.includes("waiter")
+            ? "waiter"
+            : user.email?.includes("kitchen")
+            ? "kitchen"
+            : user.email?.includes("cashier")
+            ? "cashier"
+            : user.email?.includes("manager")
+            ? "manager"
+            : user.email?.includes("delivery")
+            ? "delivery"
+            : "admin");
 
-        const fallbackProfile: Profile = {
+        let restId = user.user_metadata?.restaurant_id || null;
+        let brId = user.user_metadata?.branch_id || null;
+
+        // Dynamically resolve if not in metadata (no hardcoded fallback)
+        if (!restId) {
+          try {
+            const { data: firstRest } = await supabase.from("restaurants").select("id").limit(1).maybeSingle();
+            if (firstRest?.id) restId = firstRest.id;
+          } catch {
+            // ignore
+          }
+        }
+
+        if (!brId && restId) {
+          try {
+            const { data: firstBr } = await supabase.from("branches").select("id").eq("restaurant_id", restId).limit(1).maybeSingle();
+            if (firstBr?.id) brId = firstBr.id;
+          } catch {
+            // ignore
+          }
+        }
+
+        resolvedProfile = {
           id: user.id,
           name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Staff",
           email: user.email || "",
           role: userRole,
           status: "active",
-          restaurant_id: user.user_metadata?.restaurant_id || "a0000000-0000-0000-0000-000000000001",
-          branch_id: null,
-          phone: null,
+          restaurant_id: restId,
+          branch_id: brId,
+          phone: user.user_metadata?.phone || null,
           avatar_url: null,
           pin_code: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
-
-        return {
-          user: { id: user.id, email: user.email },
-          profile: fallbackProfile,
-          restaurant: null,
-          branch: null,
-        };
+      } else {
+        resolvedProfile = {
+          ...profile,
+          restaurant_id: profile.restaurant_id || user.user_metadata?.restaurant_id || null,
+          branch_id: profile.branch_id || user.user_metadata?.branch_id || null,
+        } as Profile;
       }
 
       // Fetch restaurant & branch in parallel if IDs exist
       const [restRes, branchRes] = await Promise.all([
-        profile.restaurant_id
+        resolvedProfile.restaurant_id
           ? supabase
               .from("restaurants")
               .select("id, name, slug, logo_url, address, phone, email, currency, tax_rate, service_charge_rate, is_active, created_at, updated_at")
-              .eq("id", profile.restaurant_id)
+              .eq("id", resolvedProfile.restaurant_id)
               .single()
           : Promise.resolve({ data: null }),
-        profile.branch_id
+        resolvedProfile.branch_id
           ? supabase
               .from("branches")
               .select("id, restaurant_id, name, code, address, phone, is_main, is_active, created_at")
-              .eq("id", profile.branch_id)
+              .eq("id", resolvedProfile.branch_id)
               .single()
           : Promise.resolve({ data: null }),
       ]);
 
       return {
         user: { id: user.id, email: user.email },
-        profile: profile as Profile,
+        profile: resolvedProfile,
         restaurant: (restRes.data as Restaurant) || null,
         branch: (branchRes.data as Branch) || null,
       };
@@ -108,6 +141,10 @@ export function useAuthProfile() {
     queryClient.invalidateQueries({ queryKey: AUTH_PROFILE_QUERY_KEY });
   };
 
+  const clearAuthProfileCache = () => {
+    queryClient.removeQueries({ queryKey: AUTH_PROFILE_QUERY_KEY });
+  };
+
   return {
     ...query,
     user: query.data?.user ?? null,
@@ -115,5 +152,6 @@ export function useAuthProfile() {
     restaurant: query.data?.restaurant ?? null,
     branch: query.data?.branch ?? null,
     invalidateAuthProfile,
+    clearAuthProfileCache,
   };
 }

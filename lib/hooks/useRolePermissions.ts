@@ -1,9 +1,10 @@
 "use client";
 
-import * as React from "react";
 import { useAuthProfile } from "./useAuthProfile";
 import {
   UserRole,
+  ROLE_PERMISSIONS,
+  RolePermissions,
   canOperateDineIn,
   canAccessAdminPos,
   canGenerateBill,
@@ -12,56 +13,72 @@ import {
   isKitchenOnly,
 } from "@/lib/constants";
 
-// Global in-memory override for live role testing
-let globalRoleOverride: UserRole | null = null;
-const listeners = new Set<() => void>();
+const DEFAULT_DENIED_PERMISSIONS: RolePermissions = {
+  canAccessAdmin: false,
+  canAccessManager: false,
+  canAccessCashier: false,
+  canAccessWaiter: false,
+  canAccessKitchen: false,
+  canAccessDelivery: false,
+  canViewTables: false,
+  canManageTables: false,
+  canCreateOrder: false,
+  canEditOrder: false,
+  canSendKot: false,
+  canViewKot: false,
+  canUpdateKotStatus: false,
+  canRequestBill: false,
+  canAccessPos: false,
+  canGenerateBill: false,
+  canProcessPayment: false,
+  canApplyDiscounts: false,
+  canManageMenu: false,
+  canManageInventory: false,
+  canManagePurchases: false,
+  canManageSuppliers: false,
+  canManageStaff: false,
+  canManageSettings: false,
+  canViewReports: false,
+  canManageDelivery: false,
+};
 
-export function setTestRoleOverride(role: UserRole | null) {
-  globalRoleOverride = role;
-  if (typeof window !== "undefined") {
-    if (role) {
-      sessionStorage.setItem("culina_test_role", role);
-    } else {
-      sessionStorage.removeItem("culina_test_role");
-    }
-  }
-  listeners.forEach((l) => l());
-}
-
+/**
+ * Single source of truth for Role & Permissions.
+ * Strictly derived from the authenticated profile.
+ * Navigation, state, or storage cannot override this.
+ */
 export function useRolePermissions() {
   const { profile, user, isLoading } = useAuthProfile();
-  const [, setTick] = React.useState(0);
 
-  React.useEffect(() => {
-    if (typeof window !== "undefined" && !globalRoleOverride) {
-      const stored = sessionStorage.getItem("culina_test_role") as UserRole | null;
-      if (stored) {
-        globalRoleOverride = stored;
-      }
-    }
-
-    const listener = () => setTick((t) => t + 1);
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }, []);
-
-  const activeRole: UserRole =
-    globalRoleOverride || profile?.role || "admin";
+  const activeRole: UserRole | null = (profile?.role as UserRole) || null;
+  const permissions: RolePermissions = activeRole
+    ? ROLE_PERMISSIONS[activeRole] || DEFAULT_DENIED_PERMISSIONS
+    : DEFAULT_DENIED_PERMISSIONS;
 
   return {
     profile,
     user,
     isLoading,
     activeRole,
-    isRoleOverridden: !!globalRoleOverride,
-    setRoleOverride: setTestRoleOverride,
+    permissions,
+    // Explicit role checks
+    isAdmin: activeRole === "admin",
+    isManager: activeRole === "manager",
+    isCashier: activeRole === "cashier",
+    isWaiter: activeRole === "waiter",
+    isKitchen: activeRole === "kitchen",
+    isDelivery: activeRole === "delivery",
+    // Functional permissions
     canDineIn: canOperateDineIn(activeRole),
     canAdminPos: canAccessAdminPos(activeRole),
     canBill: canGenerateBill(activeRole),
     canPay: canProcessPayment(activeRole),
     canRequestBill: canRequestBill(activeRole),
-    isKitchen: isKitchenOnly(activeRole),
+    isKitchenOnly: isKitchenOnly(activeRole),
+    // Deprecated compatibility dummies
+    isRoleOverridden: false,
+    setRoleOverride: (_role: UserRole | null) => {
+      console.warn("Role switching is disabled. User role is immutable from frontend.");
+    },
   };
 }

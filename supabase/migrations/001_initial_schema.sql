@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS public.restaurant_tables (
     branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE,
     section_id UUID REFERENCES public.table_sections(id) ON DELETE SET NULL,
     table_number VARCHAR(50) NOT NULL,
+    display_name VARCHAR(100),
+    description TEXT,
     capacity INT NOT NULL DEFAULT 4,
     status VARCHAR(30) DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'reserved', 'waiting_for_food', 'food_ready', 'billing', 'cleaning')),
     current_order_id UUID,

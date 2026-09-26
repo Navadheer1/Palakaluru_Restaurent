@@ -59,14 +59,17 @@ export interface TableSection {
 export interface RestaurantTable {
   id: string;
   restaurant_id: string;
-  branch_id: string;
-  section_id: string;
+  branch_id?: string | null;
+  section_id?: string | null;
   table_number: string;
+  display_name?: string | null;
+  description?: string | null;
   capacity: number;
   status: TableStatus;
-  current_order_id: string | null;
-  assigned_waiter_id: string | null;
+  current_order_id?: string | null;
+  assigned_waiter_id?: string | null;
   is_active: boolean;
+  created_at?: string;
 }
 
 export interface MenuCategory {
@@ -225,6 +228,10 @@ export interface Bill {
   service_charge: number;
   final_total: number;
   payment_status: PaymentStatus;
+  shift_id?: string | null;
+  cashier_id?: string | null;
+  reprint_count?: number;
+  last_reprinted_at?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at?: string;
@@ -307,5 +314,84 @@ export interface NotificationItem {
   type: "order" | "kitchen" | "stock" | "delivery" | "payment" | "system";
   is_read: boolean;
   link_url: string | null;
+  created_at: string;
+}
+
+export type DeliveryTrackingStatus = "inactive" | "active" | "paused" | "completed" | "stale";
+
+export interface DeliveryOrder {
+  id: string;
+  order_id: string;
+  delivery_partner_id: string | null;
+  status: "ready_for_delivery" | "assigned" | "picked_up" | "out_for_delivery" | "delivered" | "failed" | "cancelled";
+  assigned_at?: string | null;
+  delivered_at?: string | null;
+  delivery_address: string;
+  delivery_fee: number;
+  notes: string | null;
+  customer_latitude?: number | null;
+  customer_longitude?: number | null;
+  current_latitude?: number | null;
+  current_longitude?: number | null;
+  last_location_update?: string | null;
+  tracking_status?: DeliveryTrackingStatus;
+  route_distance_km?: number | null;
+  route_duration_mins?: number | null;
+  address_confirmed?: boolean;
+  customer_landmark?: string | null;
+  payment_method?: "cod" | "online" | "card_on_delivery" | "upi_on_delivery";
+  payment_collected?: boolean;
+  cash_collected_amount?: number;
+  order?: Order;
+  delivery_partner?: Profile | null;
+}
+
+export interface DeliveryLocation {
+  id: string;
+  delivery_id: string;
+  delivery_boy_id: string;
+  restaurant_id: string;
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  heading?: number | null;
+  speed?: number | null;
+  battery_level?: number | null;
+  recorded_at: string;
+}
+
+export interface CashierShift {
+  id: string;
+  restaurant_id: string;
+  branch_id?: string | null;
+  cashier_id: string;
+  cashier_name: string;
+  opening_cash: number;
+  closing_cash?: number | null;
+  expected_cash?: number | null;
+  cash_difference?: number | null;
+  total_bills: number;
+  cash_sales: number;
+  upi_sales: number;
+  card_sales: number;
+  status: "open" | "closed";
+  opened_at: string;
+  closed_at?: string | null;
+  notes?: string | null;
+}
+
+export interface BillVoidRequest {
+  id: string;
+  restaurant_id: string;
+  bill_id?: string | null;
+  bill_number: string;
+  order_number?: string | null;
+  amount: number;
+  requested_by: string;
+  requested_by_name: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
   created_at: string;
 }

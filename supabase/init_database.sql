@@ -133,13 +133,15 @@ CREATE TABLE IF NOT EXISTS public.restaurant_tables (
     branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE,
     section_id UUID REFERENCES public.table_sections(id) ON DELETE SET NULL,
     table_number VARCHAR(50) NOT NULL,
+    display_name VARCHAR(100),
+    description TEXT,
     capacity INT NOT NULL DEFAULT 4,
-    status VARCHAR(30) DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'reserved', 'waiting_for_food', 'food_ready', 'billing', 'cleaning')),
+    status VARCHAR(50) DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'reserved', 'waiting_for_food', 'food_ready', 'billing', 'cleaning', 'bill_requested', 'bill_ready', 'bill_delivered', 'payment_completed')),
     current_order_id UUID,
     assigned_waiter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT uq_branch_table_num UNIQUE(branch_id, table_number)
+    CONSTRAINT uq_restaurant_table_number UNIQUE(restaurant_id, table_number)
 );
 
 -- 7. MENU CATEGORIES

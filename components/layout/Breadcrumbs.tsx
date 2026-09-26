@@ -8,13 +8,17 @@ import { ChevronRight, Home } from "lucide-react";
 export function Breadcrumbs() {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
+  const rolePrefix = segments[0] || "admin";
+  const homeHref = rolePrefix === "cashier" ? "/cashier/pos" : `/${rolePrefix}/dashboard`;
 
-  if (segments.length === 0) {
+  if (segments.length <= 1) {
     return (
       <div className="flex items-center space-x-2 text-xs text-slate-500">
         <Home className="h-3.5 w-3.5 text-slate-400" />
         <span>/</span>
-        <span className="font-semibold text-slate-800 dark:text-slate-200">Dashboard</span>
+        <span className="font-semibold text-slate-800 dark:text-slate-200">
+          {segments[0] ? segments[0].toUpperCase() : "Dashboard"}
+        </span>
       </div>
     );
   }
@@ -22,7 +26,7 @@ export function Breadcrumbs() {
   return (
     <nav className="flex items-center space-x-1.5 text-xs text-slate-500">
       <Link
-        href="/"
+        href={homeHref}
         className="flex items-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
       >
         <Home className="h-3.5 w-3.5" />

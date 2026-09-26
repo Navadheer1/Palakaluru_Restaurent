@@ -19,16 +19,7 @@ interface TablePreview {
   timeSpent?: string;
 }
 
-const mockLiveTables: TablePreview[] = [
-  { id: "t-1", tableNumber: "T-01", section: "AC Hall", capacity: 4, status: "occupied", orderNumber: "#1038", amount: 1240, timeSpent: "32m" },
-  { id: "t-2", tableNumber: "T-02", section: "AC Hall", capacity: 2, status: "available" },
-  { id: "t-3", tableNumber: "T-03", section: "AC Hall", capacity: 6, status: "waiting_for_food", orderNumber: "#1041", amount: 2850, timeSpent: "14m" },
-  { id: "t-4", tableNumber: "T-04", section: "AC Hall", capacity: 4, status: "food_ready", orderNumber: "#1039", amount: 1680, timeSpent: "24m" },
-  { id: "t-5", tableNumber: "F-01", section: "Family", capacity: 8, status: "billing", orderNumber: "#1034", amount: 4320, timeSpent: "58m" },
-  { id: "t-6", tableNumber: "F-02", section: "Family", capacity: 6, status: "available" },
-  { id: "t-7", tableNumber: "R-01", section: "Terrace", capacity: 4, status: "reserved" },
-  { id: "t-8", tableNumber: "R-02", section: "Terrace", capacity: 4, status: "cleaning" },
-];
+
 
 const statusStyles: Record<
   TableStatus,
@@ -76,6 +67,20 @@ const statusStyles: Record<
     text: "text-purple-700 dark:text-purple-300 font-bold",
     icon: CreditCard,
   },
+  bill_delivered: {
+    label: "Bill Delivered",
+    bg: "bg-blue-50/80 dark:bg-blue-950/30",
+    border: "border-blue-300 dark:border-blue-800",
+    text: "text-blue-700 dark:text-blue-300 font-bold",
+    icon: CheckCircle2,
+  },
+  payment_completed: {
+    label: "Paid",
+    bg: "bg-emerald-50/80 dark:bg-emerald-950/30",
+    border: "border-emerald-300 dark:border-emerald-800",
+    text: "text-emerald-700 dark:text-emerald-300 font-bold",
+    icon: CheckCircle2,
+  },
   billing: {
     label: "Billing",
     bg: "bg-purple-50/60 dark:bg-purple-950/20",
@@ -105,7 +110,9 @@ const nextStatusCycle: Record<TableStatus, TableStatus> = {
   waiting_for_food: "food_ready",
   food_ready: "bill_requested",
   bill_requested: "bill_ready",
-  bill_ready: "cleaning",
+  bill_ready: "bill_delivered",
+  bill_delivered: "payment_completed",
+  payment_completed: "cleaning",
   billing: "cleaning",
   cleaning: "available",
   reserved: "occupied",
@@ -120,25 +127,24 @@ export function LiveTableStatusWidget() {
   const { sessions } = useDineInStore();
   const router = useRouter();
 
-  // Map dbTables if present, otherwise fallback to mockLiveTables, and overlay live sessions
+  // Map dbTables if present, and overlay live sessions
   const displayTables: TablePreview[] = React.useMemo(() => {
-    const source: TablePreview[] = (dbTables && dbTables.length > 0)
-      ? dbTables.map((t) => ({
-          id: t.id,
-          tableNumber: t.table_number,
-          section: t.section_name || "Dining Floor",
-          capacity: t.capacity,
-          status: (t.status as TableStatus) || "available",
-          amount: t.amount,
-          timeSpent: t.timeSpent,
-        }))
-      : mockLiveTables;
+    const activeTables = (dbTables || []).filter((t) => t.is_active !== false);
+    const source: TablePreview[] = activeTables.map((t) => ({
+      id: t.id,
+      tableNumber: t.table_number,
+      section: t.section_name || "Dining Floor",
+      capacity: t.capacity,
+      status: (t.status as TableStatus) || "available",
+      amount: t.amount,
+      timeSpent: t.timeSpent,
+    }));
 
     return source.map((tbl) => {
       const liveSession = sessions[tbl.id];
       if (liveSession) {
-        const subtotal = liveSession.sentItems.reduce((s, i) => s + i.total_price, 0) +
-          liveSession.unsentItems.reduce((s, i) => s + i.totalPrice, 0);
+        const subtotal = liveSession.sentItems.reduce((s, i) => s + (i.total_price || 0), 0) +
+          liveSession.unsentItems.reduce((s, i) => s + (i.totalPrice || 0), 0);
         return {
           ...tbl,
           status: (liveSession.status === "bill_generated"
@@ -181,8 +187,17 @@ export function LiveTableStatusWidget() {
         </Link>
       </div>
 
-      {/* Grid of Tables */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Grid of Tables or Empty State */}
+      {displayTables.length === 0 ? (
+        <div className="py-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+          <Utensils className="h-8 w-8 text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">No tables configured yet</p>
+          <Link href="/tables" className="text-[11px] text-brand-600 dark:text-brand-400 hover:underline mt-1 inline-block">
+            + Add tables in Table Management
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {displayTables.map((tbl) => {
           const style = statusStyles[tbl.status] || statusStyles.available;
           const Icon = style.icon;
@@ -234,6 +249,7 @@ export function LiveTableStatusWidget() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

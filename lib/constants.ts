@@ -30,6 +30,7 @@ export const ORDER_STATUSES = {
   SERVED: "served",
   BILL_REQUESTED: "bill_requested",
   BILL_GENERATED: "bill_generated",
+  BILL_DELIVERED: "bill_delivered",
   PAYMENT_PENDING: "payment_pending",
   CLOSED: "closed",
   COMPLETED: "completed",
@@ -45,8 +46,10 @@ export const TABLE_STATUSES = {
   FOOD_READY: "food_ready",
   BILL_REQUESTED: "bill_requested",
   BILL_READY: "bill_ready",
+  BILL_DELIVERED: "bill_delivered",
   BILL_PENDING: "billing",
   BILLING: "billing",
+  PAYMENT_COMPLETED: "payment_completed",
   CLEANING: "cleaning",
   RESERVED: "reserved",
 } as const;
@@ -125,37 +128,257 @@ export const INVENTORY_UNITS = [
   "packet",
 ] as const;
 
+export const ROLE_HOMES: Record<UserRole, string> = {
+  admin: "/admin/dashboard",
+  manager: "/manager/dashboard",
+  cashier: "/cashier/dashboard",
+  waiter: "/waiter/dashboard",
+  kitchen: "/kitchen/dashboard",
+  delivery: "/delivery/dashboard",
+};
+
+export interface RolePermissions {
+  // Navigation & namespaces
+  canAccessAdmin: boolean;
+  canAccessManager: boolean;
+  canAccessCashier: boolean;
+  canAccessWaiter: boolean;
+  canAccessKitchen: boolean;
+  canAccessDelivery: boolean;
+
+  // Floor & Tables
+  canViewTables: boolean;
+  canManageTables: boolean;
+
+  // Orders & KOT
+  canCreateOrder: boolean;
+  canEditOrder: boolean;
+  canSendKot: boolean;
+  canViewKot: boolean;
+  canUpdateKotStatus: boolean;
+  canRequestBill: boolean;
+
+  // Billing & POS
+  canAccessPos: boolean;
+  canGenerateBill: boolean;
+  canProcessPayment: boolean;
+  canApplyDiscounts: boolean;
+
+  // Management
+  canManageMenu: boolean;
+  canManageInventory: boolean;
+  canManagePurchases: boolean;
+  canManageSuppliers: boolean;
+  canManageStaff: boolean;
+  canManageSettings: boolean;
+  canViewReports: boolean;
+
+  // Delivery
+  canManageDelivery: boolean;
+}
+
+export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
+  admin: {
+    canAccessAdmin: true,
+    canAccessManager: true,
+    canAccessCashier: true,
+    canAccessWaiter: true,
+    canAccessKitchen: true,
+    canAccessDelivery: true,
+    canViewTables: true,
+    canManageTables: true,
+    canCreateOrder: true,
+    canEditOrder: true,
+    canSendKot: true,
+    canViewKot: true,
+    canUpdateKotStatus: true,
+    canRequestBill: true,
+    canAccessPos: true,
+    canGenerateBill: true,
+    canProcessPayment: true,
+    canApplyDiscounts: true,
+    canManageMenu: true,
+    canManageInventory: true,
+    canManagePurchases: true,
+    canManageSuppliers: true,
+    canManageStaff: true,
+    canManageSettings: true,
+    canViewReports: true,
+    canManageDelivery: true,
+  },
+  manager: {
+    canAccessAdmin: false,
+    canAccessManager: true,
+    canAccessCashier: false,
+    canAccessWaiter: false,
+    canAccessKitchen: false,
+    canAccessDelivery: false,
+    canViewTables: true,
+    canManageTables: true,
+    canCreateOrder: true,
+    canEditOrder: true,
+    canSendKot: true,
+    canViewKot: true,
+    canUpdateKotStatus: true,
+    canRequestBill: true,
+    canAccessPos: true,
+    canGenerateBill: true,
+    canProcessPayment: true,
+    canApplyDiscounts: true,
+    canManageMenu: false,
+    canManageInventory: true,
+    canManagePurchases: true,
+    canManageSuppliers: true,
+    canManageStaff: false,
+    canManageSettings: false,
+    canViewReports: true,
+    canManageDelivery: true,
+  },
+  cashier: {
+    canAccessAdmin: false,
+    canAccessManager: false,
+    canAccessCashier: true,
+    canAccessWaiter: false,
+    canAccessKitchen: false,
+    canAccessDelivery: false,
+    canViewTables: true,
+    canManageTables: false,
+    canCreateOrder: true,
+    canEditOrder: true,
+    canSendKot: true,
+    canViewKot: true,
+    canUpdateKotStatus: false,
+    canRequestBill: false,
+    canAccessPos: true,
+    canGenerateBill: true,
+    canProcessPayment: true,
+    canApplyDiscounts: false,
+    canManageMenu: false,
+    canManageInventory: false,
+    canManagePurchases: false,
+    canManageSuppliers: false,
+    canManageStaff: false,
+    canManageSettings: false,
+    canViewReports: false,
+    canManageDelivery: false,
+  },
+  waiter: {
+    canAccessAdmin: false,
+    canAccessManager: false,
+    canAccessCashier: false,
+    canAccessWaiter: true,
+    canAccessKitchen: false,
+    canAccessDelivery: false,
+    canViewTables: true,
+    canManageTables: false,
+    canCreateOrder: true,
+    canEditOrder: true,
+    canSendKot: true,
+    canViewKot: true,
+    canUpdateKotStatus: false,
+    canRequestBill: true,
+    canAccessPos: false,
+    canGenerateBill: false,
+    canProcessPayment: false,
+    canApplyDiscounts: false,
+    canManageMenu: false,
+    canManageInventory: false,
+    canManagePurchases: false,
+    canManageSuppliers: false,
+    canManageStaff: false,
+    canManageSettings: false,
+    canViewReports: false,
+    canManageDelivery: false,
+  },
+  kitchen: {
+    canAccessAdmin: false,
+    canAccessManager: false,
+    canAccessKitchen: true,
+    canAccessCashier: false,
+    canAccessWaiter: false,
+    canAccessDelivery: false,
+    canViewTables: false,
+    canManageTables: false,
+    canCreateOrder: false,
+    canEditOrder: false,
+    canSendKot: false,
+    canViewKot: true,
+    canUpdateKotStatus: true,
+    canRequestBill: false,
+    canAccessPos: false,
+    canGenerateBill: false,
+    canProcessPayment: false,
+    canApplyDiscounts: false,
+    canManageMenu: false,
+    canManageInventory: false,
+    canManagePurchases: false,
+    canManageSuppliers: false,
+    canManageStaff: false,
+    canManageSettings: false,
+    canViewReports: false,
+    canManageDelivery: false,
+  },
+  delivery: {
+    canAccessAdmin: false,
+    canAccessManager: false,
+    canAccessDelivery: true,
+    canAccessCashier: false,
+    canAccessWaiter: false,
+    canAccessKitchen: false,
+    canViewTables: false,
+    canManageTables: false,
+    canCreateOrder: false,
+    canEditOrder: false,
+    canSendKot: false,
+    canViewKot: false,
+    canUpdateKotStatus: false,
+    canRequestBill: false,
+    canAccessPos: false,
+    canGenerateBill: false,
+    canProcessPayment: false,
+    canApplyDiscounts: false,
+    canManageMenu: false,
+    canManageInventory: false,
+    canManagePurchases: false,
+    canManageSuppliers: false,
+    canManageStaff: false,
+    canManageSettings: false,
+    canViewReports: false,
+    canManageDelivery: true,
+  },
+};
+
 /**
  * Role-based permission checks for POS and Floor workflows
  */
 export function canOperateDineIn(role?: string | null): boolean {
-  if (!role) return true; // Default fallback permits floor taking
-  const r = role.toLowerCase();
-  return r === "waiter" || r === "manager" || r === "cashier" || r === "admin";
+  if (!role) return false;
+  const r = role.toLowerCase() as UserRole;
+  return ROLE_PERMISSIONS[r]?.canViewTables ?? false;
 }
 
 export function canAccessAdminPos(role?: string | null): boolean {
-  if (!role) return true;
-  const r = role.toLowerCase();
-  return r === "admin" || r === "manager" || r === "cashier";
+  if (!role) return false;
+  const r = role.toLowerCase() as UserRole;
+  return ROLE_PERMISSIONS[r]?.canAccessPos ?? false;
 }
 
 export function canGenerateBill(role?: string | null): boolean {
-  if (!role) return true;
-  const r = role.toLowerCase();
-  return r === "cashier" || r === "manager" || r === "admin";
+  if (!role) return false;
+  const r = role.toLowerCase() as UserRole;
+  return ROLE_PERMISSIONS[r]?.canGenerateBill ?? false;
 }
 
 export function canProcessPayment(role?: string | null): boolean {
-  if (!role) return true;
-  const r = role.toLowerCase();
-  return r === "cashier" || r === "manager" || r === "admin";
+  if (!role) return false;
+  const r = role.toLowerCase() as UserRole;
+  return ROLE_PERMISSIONS[r]?.canProcessPayment ?? false;
 }
 
 export function canRequestBill(role?: string | null): boolean {
-  if (!role) return true;
-  const r = role.toLowerCase();
-  return r === "waiter" || r === "cashier" || r === "manager" || r === "admin";
+  if (!role) return false;
+  const r = role.toLowerCase() as UserRole;
+  return ROLE_PERMISSIONS[r]?.canRequestBill ?? false;
 }
 
 export function isKitchenOnly(role?: string | null): boolean {

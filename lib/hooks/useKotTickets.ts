@@ -238,7 +238,7 @@ export function useKotTickets(options: KotFilterOptions = {}) {
           seenKotIds.add(fallbackKotId);
           list.push({
             id: fallbackKotId,
-            kotNumber: "KOT #101",
+            kotNumber: sess.orderNumber ? `KOT-${sess.orderNumber.replace("ORD-", "")}` : "KOT-01",
             orderId: sess.orderId,
             orderNumber: sess.orderNumber,
             billNumber: billNum,
@@ -364,7 +364,7 @@ export function useKotTickets(options: KotFilterOptions = {}) {
           seenKotIds.add(fallbackKotId);
           list.push({
             id: fallbackKotId,
-            kotNumber: "KOT #101",
+            kotNumber: posOrd.orderNumber ? `KOT-${posOrd.orderNumber.replace(/^ORD-?/, "")}` : "KOT",
             orderId: posOrd.id,
             orderNumber: posOrd.orderNumber,
             billNumber: billNum,
@@ -400,7 +400,7 @@ export function useKotTickets(options: KotFilterOptions = {}) {
         const tblNum = rt.table?.table_number || (rt.table_id ? `T-${rt.table_id.slice(-2)}` : rt.order_type === "takeaway" ? "Takeaway" : "Delivery");
         const orderNum = rt.order?.order_number || `ORD-${rt.order_id?.slice(-4) || "1001"}`;
         const billNum = `BILL-${orderNum.replace("ORD-", "")}`;
-        const sub = Number(rt.order?.subtotal) || 450;
+        const sub = Number(rt.order?.subtotal) || 0;
         const disc = Number(rt.order?.discount_amount) || 0;
         const tax = Number(rt.order?.tax_amount) || Math.round(sub * 0.05);
         const tot = Number(rt.order?.total_amount) || (sub - disc + tax);

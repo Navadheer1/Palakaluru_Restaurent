@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { MenuItem, MenuVariant, MenuAddon, KOT, KOTItem, Payment, Bill } from "@/types/database";
 import { PaymentMethod, PaymentStatus, KotStatus, OrderStatus, DeliveryStatus } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import { useSettingsStore } from "./useSettingsStore";
 
 export interface CartItem {
   id: string; // unique item cart key (item_id + variant_id + sorted addons)
@@ -59,6 +60,9 @@ interface PosState {
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
+  customerLandmark?: string;
+  customerLatitude?: number | null;
+  customerLongitude?: number | null;
   deliveryFee: number;
   notes: string;
   items: CartItem[];
@@ -90,6 +94,9 @@ interface PosState {
     name?: string;
     phone?: string;
     address?: string;
+    landmark?: string;
+    latitude?: number | null;
+    longitude?: number | null;
   }) => void;
   setDeliveryFee: (fee: number) => void;
   setNotes: (notes: string) => void;
@@ -233,16 +240,16 @@ async function logAudit(
 }
 
 export const usePosStore = create<PosState>((set, get) => ({
-  orderType: "takeaway",
+  orderType: (typeof window !== "undefined" && useSettingsStore.getState().pos.defaultOrderType === "dine_in" ? "takeaway" : useSettingsStore.getState().pos.defaultOrderType as any) || "takeaway",
   selectedCustomerId: null,
   customerName: "",
   customerPhone: "",
   deliveryAddress: "",
-  deliveryFee: 0,
+  deliveryFee: (typeof window !== "undefined" && useSettingsStore.getState().delivery.baseDeliveryFee) || 30,
   notes: "",
   items: [],
   discountPercent: 0,
-  taxPercent: 5.0,
+  taxPercent: (typeof window !== "undefined" && useSettingsStore.getState().taxes.defaultTaxRate) || 5.0,
   isSubmitting: false,
 
   activeOrders: loadActiveOrders(),
@@ -253,13 +260,16 @@ export const usePosStore = create<PosState>((set, get) => ({
   supplementaryItems: [],
 
   setOrderType: (orderType) => set({ orderType }),
-  setCustomerDetails: ({ id = null, name = "", phone = "", address = "" }) =>
-    set({
-      selectedCustomerId: id,
-      customerName: name,
-      customerPhone: phone,
-      deliveryAddress: address,
-    }),
+  setCustomerDetails: ({ id = null, name = "", phone = "", address = "", landmark, latitude, longitude }) =>
+    set((prev) => ({
+      selectedCustomerId: id !== undefined ? id : prev.selectedCustomerId,
+      customerName: name !== undefined ? name : prev.customerName,
+      customerPhone: phone !== undefined ? phone : prev.customerPhone,
+      deliveryAddress: address !== undefined ? address : prev.deliveryAddress,
+      customerLandmark: landmark !== undefined ? landmark : prev.customerLandmark,
+      customerLatitude: latitude !== undefined ? latitude : prev.customerLatitude,
+      customerLongitude: longitude !== undefined ? longitude : prev.customerLongitude,
+    })),
   setDeliveryFee: (deliveryFee) => set({ deliveryFee }),
   setNotes: (notes) => set({ notes }),
 
@@ -597,8 +607,13 @@ export const usePosStore = create<PosState>((set, get) => ({
           await supabase.from("delivery_orders").insert({
             order_id: orderId,
             delivery_address: state.deliveryAddress,
+            customer_landmark: state.customerLandmark || null,
+            customer_latitude: state.customerLatitude || null,
+            customer_longitude: state.customerLongitude || null,
+            address_confirmed: Boolean(state.customerLatitude),
             delivery_fee: state.deliveryFee,
             status: "ready_for_delivery",
+            payment_method: paymentMethod === "cash" ? "cod" : "online",
             notes: state.customerName ? `Customer: ${state.customerName} (${state.customerPhone})` : null,
           });
         }

@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Flame,
   Bell,
+  QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/useUiStore";
@@ -61,7 +62,8 @@ const navSections: NavSection[] = [
   {
     title: "MANAGEMENT",
     items: [
-      { name: "Menu & Items", href: "/menu", icon: BookOpen, prefetch: true },
+      { name: "Menu & Items", href: "/admin/menu", icon: BookOpen, prefetch: true },
+      { name: "Digital Menu QR", href: "/admin/digital-menu", icon: QrCode, badge: "Live", prefetch: true },
       { name: "Inventory", href: "/inventory", icon: Boxes, badge: "Alert" },
       { name: "Purchases", href: "/purchases", icon: ShoppingBag },
       { name: "Suppliers", href: "/suppliers", icon: Truck },
@@ -93,9 +95,14 @@ export function Sidebar() {
   const { profile } = useAuthProfile();
   const { activeRole } = useRolePermissions();
   const unreadCount = useNotificationStore((s) => s.getUnreadCount());
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isWaiter = activeRole === "waiter";
-  const userName = profile?.full_name || profile?.name || (isWaiter ? "R. Naresh" : "Palakaluru Admin");
+  const userName = profile?.full_name || profile?.name || (profile?.email ? profile.email.split("@")[0] : (isWaiter ? "Waiter" : "Admin"));
   const roleLabel = isWaiter ? "WAITER" : (profile?.role ? profile.role.toUpperCase() : "SUPER ADMIN");
 
   const waiterNavSections: NavSection[] = [
@@ -110,7 +117,7 @@ export function Sidebar() {
           name: "Notifications",
           href: "/notifications",
           icon: Bell,
-          badge: unreadCount > 0 ? unreadCount : undefined,
+          badge: mounted && unreadCount > 0 ? unreadCount : undefined,
           prefetch: true,
         },
       ],
@@ -229,6 +236,7 @@ export function Sidebar() {
                       )}
                       {!isSidebarCollapsed && item.badge !== undefined && (
                         <span
+                          suppressHydrationWarning
                           className={cn(
                             "ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full",
                             typeof item.badge === "number" || item.badge === "Live"
